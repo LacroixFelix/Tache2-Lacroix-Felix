@@ -19,11 +19,10 @@ import com.graphhopper.util.shapes.GHPoint;
 import com.github.javafaker.Faker;
 
 /**
- * Suite de tests pour valider le comportement de la classe Router
+ * Suite de tests (7) qui vise à valider le comportement de la classe Router
  * face à différentes requêtes de routage potentiellement invalides.
  * 
  * les objectifs sont les suivants:
- * - améliorer la couverture de code des validations d'entrée
  * - augmenter le score de mutation en testant les conditions limites
  * - détecter les mutants liés aux comparaisons, bornes et validations
  * 
@@ -35,7 +34,7 @@ public class RouterRequestTest {
 
     /**
      * crée une instance de Router avec un graphe minimal contenant
-     * deux nœuds pour définir les limites géographiques (bounding box)
+     * 2 noeuds pour définir les limites géographiques (bounding box)
      * Cette méthode utilitaire permet de tester la validation sans
      * avoir besoin d'un graphe routier complet
      */
@@ -43,7 +42,7 @@ public class RouterRequestTest {
         BaseGraph graph = new BaseGraph.Builder((byte) 0).create();
         NodeAccess nodeAccess = graph.getNodeAccess();
         
-        // Définition des limites via deux nœuds
+        // Définition des limites via 2 noeuds
         nodeAccess.setNode(0, minLat, minLon);
         nodeAccess.setNode(1, maxLat, maxLon);
 
@@ -63,26 +62,25 @@ public class RouterRequestTest {
     /**
      * Test 1: validateEmptyRequestWithoutPoints
      * 
-     * Intention: Vérifier que Router rejette proprement une requête
-     * complètement vide (sans aucun point de passage).
+     * Intention: vérifier que Router rejette proprement une requête
      * 
      * Motivation des données: Une GHRequest sans points représente
      * le cas minimal d'entrée invalide. Ce test vérifie la validation
      * la plus basique.
      * 
-     * Oracle: La réponse doit contenir des erreurs et le message
-     * d'erreur doit explicitement mentionner l'absence de points.
+     * Oracle: la réponse doit contenir des erreurs et le message
+     * d'erreur doit explicitement mentionner l'absence de points
      */
     @Test
     void validateEmptyRequestWithoutPoints() {
         Router router = createRouterWithGeographicBounds(-10, -10, 10, 10);
-        GHRequest emptyRequest = new GHRequest();
+        GHRequest emptyReq = new GHRequest();
         
-        GHResponse response = router.route(emptyRequest);
+        GHResponse res = router.route(emptyReq);
         
-        assertTrue(response.hasErrors(), "Une requête sans points doit être rejetée");
-        String errorMessage = response.getErrors().get(0).getMessage().toLowerCase();
-        assertTrue(errorMessage.contains("point"), 
+        assertTrue(res.hasErrors(), "Une requête sans points doit être rejetée");
+        String errorMsg = res.getErrors().get(0).getMessage().toLowerCase();
+        assertTrue(errorMsg.contains("point"), 
                 "Le message d'erreur doit mentionner l'absence de points");
     }
 
@@ -92,7 +90,7 @@ public class RouterRequestTest {
      * Intention: Tester la détection d'éléments null dans la liste
      * des points de passage, avec identification de la position.
      * 
-     * Motivation des données: Liste avec 3 points dont le deuxième
+     * Motivation des données: Liste avec 3 points dont le 2ième
      * est null. Ce placement au milieu teste la capacité à détecter
      * les nulls à n'importe quelle position, pas seulement au début/fin.
      * 
@@ -103,17 +101,17 @@ public class RouterRequestTest {
     void detectNullElementInPointsList() {
         Router router = createRouterWithGeographicBounds(-5, -5, 5, 5);
         
-        List<GHPoint> pointsWithNull = new ArrayList<>();
-        pointsWithNull.add(new GHPoint(0.0, 0.0));
-        pointsWithNull.add(null); // Position 1 - null au milieu
-        pointsWithNull.add(new GHPoint(1.0, 1.0));
+        List<GHPoint> nullPoints = new ArrayList<>();
+        nullPoints.add(new GHPoint(0.0, 0.0));
+        nullPoints.add(null); // Position 1 - null au milieu
+        nullPoints.add(new GHPoint(1.0, 1.0));
         
-        GHRequest request = new GHRequest(pointsWithNull);
-        GHResponse response = router.route(request);
+        GHRequest request = new GHRequest(nullPoints);
+        GHResponse res = router.route(request);
         
-        assertTrue(response.hasErrors(), "Une liste avec point null doit être rejetée");
-        String errorMessage = response.getErrors().get(0).getMessage().toLowerCase();
-        assertTrue(errorMessage.contains("null") && errorMessage.contains("point"),
+        assertTrue(res.hasErrors(), "Une liste avec point null doit être rejetée");
+        String errorMsg = res.getErrors().get(0).getMessage().toLowerCase();
+        assertTrue(errorMsg.contains("null") && errorMsg.contains("point"),
                 "L'erreur doit indiquer qu'un point est null");
     }
 
@@ -134,16 +132,16 @@ public class RouterRequestTest {
     void rejectPointsOutsideGraphBoundaries() {
         Router router = createRouterWithGeographicBounds(-2, -2, 2, 2);
         
-        GHRequest request = new GHRequest(Arrays.asList(
+        GHRequest req = new GHRequest(Arrays.asList(
                 new GHPoint(0.0, 0.0),      // Dans les limites
                 new GHPoint(50.0, 50.0)      // Hors limites
         ));
         
-        GHResponse response = router.route(request);
+        GHResponse res = router.route(req);
         
-        assertTrue(response.hasErrors(), "Points hors limites doivent être rejetés");
-        String errorMessage = response.getErrors().get(0).getMessage().toLowerCase();
-        assertTrue(errorMessage.contains("bound") || errorMessage.contains("outside"),
+        assertTrue(res.hasErrors(), "Points hors limites doivent être rejetés");
+        String errorMsg = res.getErrors().get(0).getMessage().toLowerCase();
+        assertTrue(errorMsg.contains("bound") || errorMsg.contains("outside"),
                 "L'erreur doit mentionner le dépassement des limites");
     }
 
@@ -163,20 +161,20 @@ public class RouterRequestTest {
     void validateHeadingCountConsistency() {
         Router router = createRouterWithGeographicBounds(-5, -5, 5, 5);
         
-        GHRequest request = new GHRequest(Arrays.asList(
+        GHRequest req = new GHRequest(Arrays.asList(
                 new GHPoint(0.0, 0.0),
                 new GHPoint(1.0, 1.0),
                 new GHPoint(2.0, 2.0)
         ));
         
         // 2 headings pour 3 points - incohérent
-        request.setHeadings(Arrays.asList(45.0, 90.0));
+        req.setHeadings(Arrays.asList(45.0, 90.0));
         
-        GHResponse response = router.route(request);
+        GHResponse res = router.route(req);
         
-        assertTrue(response.hasErrors(), "Nombre incohérent de headings doit être rejeté");
-        String errorMessage = response.getErrors().get(0).getMessage().toLowerCase();
-        assertTrue(errorMessage.contains("heading"),
+        assertTrue(res.hasErrors(), "Nombre incohérent de headings doit être rejeté");
+        String errorMsg = res.getErrors().get(0).getMessage().toLowerCase();
+        assertTrue(errorMsg.contains("heading"),
                 "L'erreur doit mentionner le problème de headings");
     }
 
@@ -198,27 +196,27 @@ public class RouterRequestTest {
         Router router = createRouterWithGeographicBounds(-5, -5, 5, 5);
         
         // Test avec heading négatif
-        GHRequest requestNegative = new GHRequest(Arrays.asList(
+        GHRequest negativeReq = new GHRequest(Arrays.asList(
                 new GHPoint(0.0, 0.0),
                 new GHPoint(1.0, 1.0)
         ));
-        requestNegative.setHeadings(Arrays.asList(-45.0, 90.0));
+        negativeReq.setHeadings(Arrays.asList(-45.0, 90.0));
         
-        GHResponse responseNegative = router.route(requestNegative);
-        assertTrue(responseNegative.hasErrors(), "Heading négatif doit être rejeté");
+        GHResponse negativeResp = router.route(negativeReq);
+        assertTrue(negativeResp.hasErrors(), "Heading négatif doit être rejeté");
         
         // Test avec heading > 360
-        GHRequest requestTooLarge = new GHRequest(Arrays.asList(
+        GHRequest reqTooLarge = new GHRequest(Arrays.asList(
                 new GHPoint(0.0, 0.0),
                 new GHPoint(1.0, 1.0)
         ));
-        requestTooLarge.setHeadings(Arrays.asList(90.0, 400.0));
+        reqTooLarge.setHeadings(Arrays.asList(90.0, 400.0));
         
-        GHResponse responseTooLarge = router.route(requestTooLarge);
+        GHResponse responseTooLarge = router.route(reqTooLarge);
         assertTrue(responseTooLarge.hasErrors(), "Heading > 360 doit être rejeté");
         
-        String errorMessage = responseTooLarge.getErrors().get(0).getMessage().toLowerCase();
-        assertTrue(errorMessage.contains("heading") || errorMessage.contains("azimuth"),
+        String errorMsg = responseTooLarge.getErrors().get(0).getMessage().toLowerCase();
+        assertTrue(errorMsg.contains("heading") || errorMsg.contains("azimuth"),
                 "L'erreur doit mentionner le problème de heading/azimuth");
     }
 
@@ -267,8 +265,8 @@ public class RouterRequestTest {
                 String.format("Mismatch curbsides: %d curbsides pour %d points", 
                     curbsides.size(), points.size()));
         
-        String errorMessage = response.getErrors().get(0).getMessage().toLowerCase();
-        assertTrue(errorMessage.contains("curbside"),
+        String errorMsg = response.getErrors().get(0).getMessage().toLowerCase();
+        assertTrue(errorMsg.contains("curbside"),
                 "L'erreur doit mentionner le problème de curbsides");
     }
 
@@ -301,11 +299,11 @@ public class RouterRequestTest {
                 .mapToObj(i -> faker.address().streetName())
                 .collect(Collectors.toList());
         
-        GHRequest requestTooMany = new GHRequest(points);
-        requestTooMany.setPointHints(tooManyHints);
+        GHRequest reqTooMany = new GHRequest(points);
+        reqTooMany.setPointHints(tooManyHints);
         
-        GHResponse responseTooMany = router.route(requestTooMany);
-        assertTrue(responseTooMany.hasErrors(),
+        GHResponse resTooMany = router.route(reqTooMany);
+        assertTrue(resTooMany.hasErrors(),
                 "Trop de hints (4) pour 2 points doit être rejeté");
         
         // Cas 2: Moins de hints que de points (mais > 1)
@@ -321,15 +319,15 @@ public class RouterRequestTest {
                 faker.address().streetName()
         );
         
-        GHRequest requestTooFew = new GHRequest(manyPoints);
-        requestTooFew.setPointHints(tooFewHints);
+        GHRequest reqTooFew = new GHRequest(manyPoints);
+        reqTooFew.setPointHints(tooFewHints);
         
-        GHResponse responseTooFew = router.route(requestTooFew);
-        assertTrue(responseTooFew.hasErrors(),
+        GHResponse resTooFew = router.route(reqTooFew);
+        assertTrue(resTooFew.hasErrors(),
                 "2 hints pour 5 points doit être rejeté");
         
-        String errorMessage = responseTooFew.getErrors().get(0).getMessage().toLowerCase();
-        assertTrue(errorMessage.contains("hint"),
+        String errorMsg = resTooFew.getErrors().get(0).getMessage().toLowerCase();
+        assertTrue(errorMsg.contains("hint"),
                 "L'erreur doit mentionner le problème de hints");
     }
 }
