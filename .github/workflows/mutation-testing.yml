@@ -10,20 +10,20 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     
     - name: Set up JDK
-      uses: actions/setup-java@v3
+      uses: actions/setup-java@v4 
       with:
         java-version: '17'
         distribution: 'temurin'
 
     - name: Download previous benchmark
-      uses: actions/download-artifact@v3
+      uses: actions/download-artifact@v4
       with:
         name: mutation-score
         path: ./
-      continue-on-error: true
+      continue-on-error: true 
 
     - name: Run Mutation Tests
       run: mvn org.pitest:pitest-maven:mutationCoverage
@@ -31,17 +31,16 @@ jobs:
     - name: Check Mutation Score
       id: check_score
       run: |
-        # Chercher "Mutation Coverage" dans le rapport HTML
-        # Note: Ajustez le chemin si votre rapport est ailleurs
+        # Extraction du score (ajustez le regex si nécessaire selon votre version de PITest)
         NEW_SCORE=$(grep -oP 'Mutation Coverage.*?<span class="code">\K[0-9]+' target/pit-reports/*/index.html | head -1 || echo "0")
         
-        # Lire l'ancien score (0 si fichier inexistant)
+        # Lecture ancien score (0 si pas de fichier)
         OLD_SCORE=$(cat mutation-score.txt 2>/dev/null || echo "0")
         
         echo "Ancien Score: $OLD_SCORE%"
         echo "Nouveau Score: $NEW_SCORE%"
         
-        # Sauvegarder le nouveau score pour le futur
+        # Sauvegarde pour le futur
         echo "$NEW_SCORE" > mutation-score.txt
         
         if [ "$NEW_SCORE" -lt "$OLD_SCORE" ]; then
@@ -51,10 +50,11 @@ jobs:
 
     - name: Save new benchmark
       if: always()
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
         name: mutation-score
         path: mutation-score.txt
+        overwrite: true
 
     - name: Rickroll on Failure
       if: failure()
